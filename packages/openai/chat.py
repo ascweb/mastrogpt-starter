@@ -3,6 +3,7 @@
 #--param OPENAI_API_HOST $OPENAI_API_HOST
 
 from openai import AzureOpenAI
+import subprocess,json, socket
 import re
 
 ROLE = """
@@ -26,7 +27,6 @@ def ask(input):
         content = comp.choices[0].message.content
         return content
     return "ERROR"
-
 
 """
 import re
@@ -64,6 +64,63 @@ def extract(text):
         return res
     return res
 
+def verifica_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if re.match(pattern, email):
+        return True
+    else:
+        return False
+    
+def verifica_ip(ip):
+    pattern = r'^\w+(\.\w+){1,2}$'
+    if re.match(pattern, ip):
+        return True
+    else:
+        return False
+
+def verifica_chess(string):
+    pattern =  r'\bchess\b'
+    if re.search(pattern, string):
+        return True
+    else:
+        return False
+
+def risolvoDominio(dominio):
+    try:
+        indirizzo_IP = socket.gethostbyname(dominio)
+        return {
+            "output": "Risovi domionio "+dominio,
+            "title": "Dominio " + dominio,
+            "message": "L'indirizzo IP è "+indirizzo_IP,
+            "ip": indirizzo_IP
+        }
+    except socket.gaierror as e: 
+        return {
+            "output": "Risovi domionio "+dominio,
+            "title": "ERRORE Dominio " + dominio,
+            "message": " si è verificato un errore! " + e.strerror
+        }
+
+def chiamata_api_curl():
+    username = "username"
+    password = "password"
+    url = "https://nuvolaris.dev/api/v1/web/utils/demo/slack\?text=ciao+ciao"
+    try:
+        comando = ['curl', '-u', '{}:{}'.format(username, password) , '-s', url]
+        output = subprocess.check_output(comando).decode('utf-8').strip()
+        if output == "ok":
+            return output
+        else: 
+            errore = json.loads(output)
+            messaggio = "si è verificato un errore: " + errore["error"]
+            print("Si è verificato un errore",errore)
+            #return output
+            return messaggio
+    
+    except subprocess.CalledProcessError as e:
+        print("Errore nel curl", e)
+        return None
+
 def main(args):
     global AI
     (key, host) = (args["OPENAI_API_KEY"], args["OPENAI_API_HOST"])
@@ -72,10 +129,47 @@ def main(args):
     input = args.get("input", "")
     if input == "":
         res = {
-            "output": "Benvenuto to the OpenAI demo chat",
+            "output": "Benvenuto! to the OpenAI demo chat",
             "title": "OpenAI Chat",
             "message": "You can chat with OpenAI."
         }
+    elif verifica_email(input):
+        output = chiamata_api_curl()
+    
+        res = {
+            "output": "Ho verificato l'indirizzo email: "+ input +"  ",
+            "title": "Chiamata CURL ",
+            "message": "Con esito: "+ output
+        }
+    elif verifica_ip(input):
+        output = risolvoDominio(input)
+    
+        res = {
+            "output": "Ho verificato l'indirizzo IP, "+ input +"corrisponde a "+output["ip"],
+            "title": output["title"],
+            "message": "Con esito: "+ output["message"]
+        }
+
+    elif verifica_chess(input):
+
+        # "is the following a request for a chess puzzle: "{input}": Answer Yes or No." 
+        res = "Temp"
+
+        if res == "Yes":
+            res = {
+                "output": "Domanda: "+ input,
+                "title": "Chiamata CHESS ",
+                "message": "Con esito: da verificare"
+            }
+
+        else:
+            res = {
+                "output": "Domanda: "+ input,
+                "title": "Chiamata CHESS ",
+                "message": "Con esito "
+            }
+
+
     else:
         output = ask(input)
         res = extract(output)
