@@ -72,7 +72,7 @@ def main(args):
     input = args.get("input", "")
     if input == "":
         res = {
-            "output": "Welcome to the OpenAI demo chat",
+            "output": "Benvenuto to the OpenAI demo chat",
             "title": "OpenAI Chat",
             "message": "You can chat with OpenAI."
         }
