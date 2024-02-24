@@ -16,6 +16,8 @@ So exclude always BODY, HEAD and HTML .
 
 MODEL = "gpt-35-turbo"
 AI = None
+allerta_chess = False
+input_bk = ''
 
 def req(msg):
     return [{"role": "system", "content": ROLE}, 
@@ -72,7 +74,8 @@ def verifica_email(email):
         return False
     
 def verifica_ip(ip):
-    pattern = r'^\w+(\.\w+){1,2}$'
+    #pattern = r'^\w+(\.\w+){1,2}$'
+    pattern = r'\b\w+(\.\w+){1,2}(\.\w+)?\b'
     if re.match(pattern, ip):
         return True
     else:
@@ -83,8 +86,11 @@ def verifica_chess(string):
     if re.search(pattern, string):
         return True
     else:
-        return False
-
+        pattern =  r'\bscacchi\b'
+        if re.search(pattern, string):
+            return True
+        else:
+            return False
 def risolvoDominio(dominio):
     try:
         indirizzo_IP = socket.gethostbyname(dominio)
@@ -102,8 +108,8 @@ def risolvoDominio(dominio):
         }
 
 def chiamata_api_curl():
-    username = "username"
-    password = "password"
+    username = "scardone"
+    password = "26gcREBJ5jH7GDx"
     url = "https://nuvolaris.dev/api/v1/web/utils/demo/slack\?text=ciao+ciao"
     try:
         comando = ['curl', '-u', '{}:{}'.format(username, password) , '-s', url]
@@ -121,15 +127,34 @@ def chiamata_api_curl():
         print("Errore nel curl", e)
         return None
 
+
+def chiamata_api_curlPro(url, string):
+    try:
+        comando = ['curl', '-s', url]
+        output = subprocess.check_output(comando).decode('utf-8').strip()
+        data = json.loads(output)
+        fen = data["items"][0]["fen"]
+        return {
+                "output":  "Alla tua richiesta di "+string+" ho associato il FEN: "+ fen,
+                "title": "Il tuo puzzle ",
+                "message": f"Con FEN: {fen} associato al {string}"
+            }
+    
+    except subprocess.CalledProcessError as e:
+        print("Errore nel curl", e)
+        return {"output":"Mi spiaze!"}
+
+
 def main(args):
     global AI
+    global allerta_chess, input_bk
     (key, host) = (args["OPENAI_API_KEY"], args["OPENAI_API_HOST"])
     AI = AzureOpenAI(api_version="2023-12-01-preview", api_key=key, azure_endpoint=host)
 
     input = args.get("input", "")
     if input == "":
         res = {
-            "output": "Benvenuto! to the OpenAI demo chat",
+            "output": "Ciao! Welcome To the OpenAI demo chat",
             "title": "OpenAI Chat",
             "message": "You can chat with OpenAI."
         }
@@ -137,38 +162,42 @@ def main(args):
         output = chiamata_api_curl()
     
         res = {
-            "output": "Ho verificato l'indirizzo email: "+ input +"  ",
+            "output": "Ho verificato l'indirizzo email: "+ input +"!  ",
             "title": "Chiamata CURL ",
             "message": "Con esito: "+ output
         }
     elif verifica_ip(input):
-        output = risolvoDominio(input)
+        try:
+            output = risolvoDominio(input)
     
-        res = {
-            "output": "Ho verificato l'indirizzo IP, "+ input +"corrisponde a "+output["ip"],
+            res = {
+            "output": "Ho verificato l'indirizzo IP, "+ input +" corrisponde a "+output["ip"],
             "title": output["title"],
             "message": "Con esito: "+ output["message"]
-        }
-
-    elif verifica_chess(input):
-
-        # "is the following a request for a chess puzzle: "{input}": Answer Yes or No." 
-        res = "Temp"
-
-        if res == "Yes":
+            }
+        except:
             res = {
-                "output": "Domanda: "+ input,
+            "output": "Ho verificato l'indirizzo IP, "+ input +" ma si è verificato un errore",
+            "title": "ERRORE",
+            "message": ""
+            } 
+
+    elif allerta_chess != False:
+            if input.upper()=="YES":
+                res = chiamata_api_curlPro("https://pychess.run.goorm.io/api/puzzle?limit=1", input_bk)
+            else:
+                res = {
+                "output": "Risposta: "+ input.upper(),
                 "title": "Chiamata CHESS ",
                 "message": "Con esito: da verificare"
-            }
+                }
 
-        else:
-            res = {
-                "output": "Domanda: "+ input,
-                "title": "Chiamata CHESS ",
-                "message": "Con esito "
-            }
-
+    elif verifica_chess(input):
+        output = f"Is the following a request for a chess puzzle: {input}: Answer Yes or No."
+        res = {"output": output}
+        allerta_chess = True
+        input_bk = input
+    
 
     else:
         output = ask(input)
