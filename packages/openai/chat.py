@@ -3,7 +3,10 @@
 #--param OPENAI_API_HOST $OPENAI_API_HOST
 
 from openai import AzureOpenAI
-import subprocess,json, socket
+from requests.auth import HTTPBasicAuth
+
+#from dotenv import load_dotenv
+import subprocess,json, socket, requests
 import re
 
 ROLE = """
@@ -18,6 +21,8 @@ MODEL = "gpt-35-turbo"
 AI = None
 allerta_chess = False
 input_bk = ''
+#load_dotenv()
+#api_key = os.getenv("OPENAI_API_KEY")
 
 def req(msg):
     return [{"role": "system", "content": ROLE}, 
@@ -88,24 +93,47 @@ def risolvoDominio(dominio):
             "message": " si è verificato un errore! " + e.strerror
         }
 
-def chiamata_api_curl():
+def ciaociao(key,psw):
+    url = "https://nuvolaris.dev/api/v1/web/utils/demo/slack\?text=ciao+ciao"
+    params = {'text': 'ciao ciao'}
+    username = "scardone"
+    password = psw
+    try:
+        headers = {'Authorization': f'{key}'}
+        response =  requests.get(url, params=params,  auth=HTTPBasicAuth(username, password))
+
+        if response.status_code == 200:
+            return 'ok'
+        else:
+            return  f"ko {response.text} ({str(response.status_code)})  using key: {key[0:3]}... o psw: {psw[0:3]}..."
+    except:
+        return None
+
+def chiamata_api_curl(apiKey):
     username = "username"
     password= "password"
+
     url = "https://nuvolaris.dev/api/v1/web/utils/demo/slack\?text=ciao+ciao"
-    try:
-        comando = ['curl', '-u', '{}:{}'.format(username, password) , '-s', url]
-        output = subprocess.check_output(comando).decode('utf-8').strip()
-        if output == "ok":
-            return output
-        else: 
-            errore = json.loads(output)
-            messaggio = "si è verificato un errore: " + errore["error"]
-            print("Si è verificato un errore",errore)
-            #return output
-            return messaggio
+    if apiKey is None:
+        return "Key non trovata"
+    else:
+        try:
+            #comando = ['curl', '-u', '{}:{}'.format(username, password) , '-s', url]
+            #comando = ['curl', '-s', url]
+            comando = ['curl', '-H', f'Authorization: {apiKey}', '-s', url]
+            #comando = ['curl', '-H', f'Authorization: Bearer {apiKey}', '-s', url]
+
+            output = subprocess.check_output(comando).decode('utf-8').strip()
+            if output == "ok":
+                return output
+            else: 
+                errore = json.loads(output)
+                messaggio = "si è verificato questo errore: " + errore["error"] +" using key: "+apiKey[0:10]+"..."
+                #return output
+                return messaggio
     
-    except subprocess.CalledProcessError as e:
-        print("Errore nel curl", e)
+        except subprocess.CalledProcessError as e:
+            print("Errore nel curl", e)
         return None
 
 
@@ -126,6 +154,7 @@ def main(args):
     global AI
     global allerta_chess, input_bk
     (key, host) = (args["OPENAI_API_KEY"], args["OPENAI_API_HOST"])
+    psw = "nuVolaris123!"
     pattern_IP = r'\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?\b'
     pattern_EMAIL = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     AI = AzureOpenAI(api_version="2023-12-01-preview", api_key=key, azure_endpoint=host)
@@ -139,11 +168,12 @@ def main(args):
         }
         #verifica email
     elif verifica_regex(pattern_EMAIL, input):
-        output = chiamata_api_curl()
+        output = ciaociao(key, psw)
+        #output = chiamata_api_curl(key)
     
         res = {
             "output": "Ho verificato l'indirizzo email: "+ input +"!  ",
-            "title": "Chiamata CURL ",
+            "title": "Chiamata  ",
             "message": "Con esito: "+ output
         }
 
