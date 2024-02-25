@@ -89,8 +89,8 @@ def risolvoDominio(dominio):
         }
 
 def chiamata_api_curl():
-    username = "scardone"
-    password = "26gcREBJ5jH7GDx"
+    username = "username"
+    password= "password"
     url = "https://nuvolaris.dev/api/v1/web/utils/demo/slack\?text=ciao+ciao"
     try:
         comando = ['curl', '-u', '{}:{}'.format(username, password) , '-s', url]
@@ -116,11 +116,6 @@ def chiamata_api_curlPro(url, string):
         data = json.loads(output)
         fen = data["items"][0]["fen"]
         return fen;
-        return {
-                "output":  "Alla tua richiesta di "+string+" ho associato il FEN: "+ fen,
-                "title": "Il tuo puzzle ",
-                "message": f"Con FEN: {fen} associato al {string}"
-            }
     
     except subprocess.CalledProcessError as e:
         print("Errore nel curl", e)
