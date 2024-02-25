@@ -66,31 +66,12 @@ def extract(text):
         return res
     return res
 
-def verifica_email(email):
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if re.match(pattern, email):
+def verifica_regex(pattern,email):
+    if re.search(pattern, email):
         return True
     else:
         return False
     
-def verifica_ip(ip):
-    #pattern = r'^\w+(\.\w+){1,2}$'
-    pattern = r'\b\w+(\.\w+){1,2}(\.\w+)?\b'
-    if re.match(pattern, ip):
-        return True
-    else:
-        return False
-
-def verifica_chess(string):
-    pattern =  r'\bchess\b'
-    if re.search(pattern, string):
-        return True
-    else:
-        pattern =  r'\bscacchi\b'
-        if re.search(pattern, string):
-            return True
-        else:
-            return False
 def risolvoDominio(dominio):
     try:
         indirizzo_IP = socket.gethostbyname(dominio)
@@ -134,6 +115,7 @@ def chiamata_api_curlPro(url, string):
         output = subprocess.check_output(comando).decode('utf-8').strip()
         data = json.loads(output)
         fen = data["items"][0]["fen"]
+        return fen;
         return {
                 "output":  "Alla tua richiesta di "+string+" ho associato il FEN: "+ fen,
                 "title": "Il tuo puzzle ",
@@ -149,6 +131,8 @@ def main(args):
     global AI
     global allerta_chess, input_bk
     (key, host) = (args["OPENAI_API_KEY"], args["OPENAI_API_HOST"])
+    pattern_IP = r'\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?\b'
+    pattern_EMAIL = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     AI = AzureOpenAI(api_version="2023-12-01-preview", api_key=key, azure_endpoint=host)
 
     input = args.get("input", "")
@@ -158,7 +142,8 @@ def main(args):
             "title": "OpenAI Chat",
             "message": "You can chat with OpenAI."
         }
-    elif verifica_email(input):
+        #verifica email
+    elif verifica_regex(pattern_EMAIL, input):
         output = chiamata_api_curl()
     
         res = {
@@ -166,7 +151,8 @@ def main(args):
             "title": "Chiamata CURL ",
             "message": "Con esito: "+ output
         }
-    elif verifica_ip(input):
+
+    elif verifica_regex(pattern_IP, input):
         try:
             output = risolvoDominio(input)
     
@@ -183,21 +169,24 @@ def main(args):
             } 
 
     elif allerta_chess != False:
+            allerta_chess = False
             if input.upper()=="YES":
-                res = chiamata_api_curlPro("https://pychess.run.goorm.io/api/puzzle?limit=1", input_bk)
+                output = chiamata_api_curlPro("https://pychess.run.goorm.io/api/puzzle?limit=1", input_bk)
+                res = extract(output)
+                res['output'] = f"Questo il fen della tua richiesta ({input_bk}): {output}"
+        
             else:
                 res = {
-                "output": "Risposta: "+ input.upper(),
+                "output": "Risposta: "+ input,
                 "title": "Chiamata CHESS ",
                 "message": "Con esito: da verificare"
                 }
 
-    elif verifica_chess(input):
+    elif verifica_regex(r'\bchess|scacchi\b',input) :
         output = f"Is the following a request for a chess puzzle: {input}: Answer Yes or No."
         res = {"output": output}
         allerta_chess = True
         input_bk = input
-    
 
     else:
         output = ask(input)
